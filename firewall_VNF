@@ -1,0 +1,36 @@
+#!/bin/bash
+#VNF firewall
+#iptables variable
+ipt="/sbin/iptables"
+
+#Flush all
+$ipt -F 
+$ipt -t nat -F
+$ipt -t mangle -F
+$ipt -X
+$ipt -t nat -X
+$ipt -t mangle -X
+
+#configure default policies
+$ipt -P INPUT ACCEPT
+$ipt -P FORWARD ACCEPT
+$ipt -P OUTPUT ACCEPT
+$ipt -t nat -P OUTPUT ACCEPT
+$ipt -t nat -P PREROUTING ACCEPT
+$ipt -t nat -P POSTROUTING ACCEPT
+
+#Control HTTP connection to the server
+$ipt -A INPUT -p tcp --dport 80 --sport 1024:65535 -m state --state NEW -j DROP
+
+# outgoing and incomming rules
+$ipt -A INPUT -i enp0s3 -m state --state ESTABLISHED,RELATED -j ACCEPT
+$ipt -A INPUT -i enp0s8 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+
+#traffic passing through the server
+$ipt -A FORWARD -i enp0s3 -o enp0s8 -m state --state ESTABLISHED,RELATED -j ACCEPT
+$ipt -A FORWARD -i enp0s8 -o enp0s3 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+
+#Allow all ICMP messages
+$ipt -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+$ipt -A INPUT -p icmp --icmp-type time-exceeded -j ACCEPT
+$ipt -A INPUT -p icmp --icmp-type destination-unreachable -j ACCEPT
